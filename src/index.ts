@@ -1,7 +1,7 @@
 import { Context, h, Logger, Schema, Session } from "koishi";
 import fs from "fs";
 import Fuse from "fuse.js";
-import { randomSubarry } from "./utils";
+import { randomSubarry as randomSubarray } from "./utils";
 
 export const name = "kaizimu";
 
@@ -135,7 +135,7 @@ class Kaizimu {
   }
 
   init(session: Session<never, never, Context>, length: number) {
-    this.itemsToGuess = randomSubarry(this.LibList, length).map((name) => {
+    this.itemsToGuess = randomSubarray(this.LibList, length).map((name) => {
       return { name, guessed: false };
     });
     this.letterGuessed = [];
