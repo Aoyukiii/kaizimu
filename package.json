@@ -21,7 +21,8 @@
   "dependencies": {
     "fuse.js": "^7.0.0"
   },
-  "koishi": {
-    "description": "开字母游戏"
+  "repository": {
+    "type": "git",
+    "directory": "git+https://github.com/Aoyukiii/kaizimu.git"
   }
 }
