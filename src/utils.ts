@@ -1,4 +1,4 @@
-export function randomSubarry<T>(arr: T[], num: number): T[] {
+export function randomSubarray<T>(arr: T[], num: number): T[] {
   return arr
     .map((elem) => {
       return { index: Math.random(), elem };

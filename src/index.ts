@@ -1,7 +1,7 @@
 import { Context, h, Logger, Schema, Session } from "koishi";
 import fs from "fs";
 import Fuse from "fuse.js";
-import { randomSubarry as randomSubarray } from "./utils";
+import { randomSubarray } from "./utils";
 
 export const name = "kaizimu";
 
@@ -9,15 +9,20 @@ export interface Config {}
 
 export const Config: Schema<Config> = Schema.object({});
 
-interface GuessInfo {
+interface LibItem {
   name: string;
+  aliases?: string[];
+}
+
+interface GuessInfo extends LibItem {
+  // name: string;
   guessed: boolean;
 }
 
 class Kaizimu {
-  private fuse: Fuse<string>;
+  private fuse: Fuse<LibItem>;
   private logger: Logger;
-  private LibList: string[];
+  private LibList: LibItem[];
 
   private onGame: boolean;
   private dispose: () => boolean;
@@ -33,8 +38,24 @@ class Kaizimu {
         this.logger.error(err);
       }
       try {
-        this.LibList = JSON.parse(raw);
-        this.fuse = new Fuse(this.LibList, { includeScore: true });
+        let arrRaw: unknown[] = JSON.parse(raw);
+        if (typeof arrRaw[0] === "string") {
+          this.LibList = (arrRaw as string[]).map((name) => {
+            return { name };
+          });
+        } else if (
+          typeof arrRaw[0] === "object" &&
+          (arrRaw[0] as LibItem).name
+        ) {
+          this.LibList = arrRaw as LibItem[];
+        } else {
+          this.logger.error("无法识别的词库。");
+          return;
+        }
+        this.fuse = new Fuse(this.LibList, {
+          includeScore: true,
+          keys: ["name", "aliases"],
+        });
       } catch (err) {
         this.logger.error(err);
       }
@@ -46,14 +67,31 @@ class Kaizimu {
         if (result.length === 0) return `无查询结果。`;
         return [
           h.quote(session.messageId),
-          `您要找的是不是：${result[0].item}\n` +
-            `相似的还有：\n` +
+          h.text(`您要找的是不是：${result[0].item.name}\n`),
+          h.text(`相似的还有：\n`),
+          h.text(
             result
               .map(
                 (item, index) =>
-                  `[#${index + 1}] ${item.item} (${item.score.toFixed(2)})`
+                  `[#${index + 1}] ${item.item.name} (${item.score.toFixed(2)})`
               )
-              .join("\n"),
+              .join("\n")
+          ),
+        ];
+      } catch (err) {
+        this.logger.error(err);
+        return "未知错误，请联系管理员。";
+      }
+    });
+
+    ctx.command("alias <name:text>").action(({ session }, name: string) => {
+      try {
+        const result = this.search(name, 1);
+        if (result.length === 0) return `无查询结果。`;
+        return [
+          h.quote(session.messageId),
+          h.text(`“${result[0].item.name}”有如下别名：`),
+          h.text(`\n${result[0].item.aliases.join("\n")}`),
         ];
       } catch (err) {
         this.logger.error(err);
@@ -135,8 +173,8 @@ class Kaizimu {
   }
 
   init(session: Session<never, never, Context>, length: number) {
-    this.itemsToGuess = randomSubarray(this.LibList, length).map((name) => {
-      return { name, guessed: false };
+    this.itemsToGuess = randomSubarray(this.LibList, length).map((item) => {
+      return { ...item, guessed: false };
     });
     this.letterGuessed = [];
     this.logger.info(this.itemsToGuess);
@@ -158,8 +196,8 @@ class Kaizimu {
   }
 
   uncoverItem(session: Session<never, never, Context>, raw: string) {
-    const userGuess: string = this.search(raw)[0]?.item ?? "";
-    if (userGuess === "") {
+    const userGuess: LibItem = this.search(raw)[0]?.item ?? { name: "" };
+    if (userGuess.name === "") {
       session.send([
         h.quote(session.messageId),
         h.text(`未找到歌曲“${raw.slice(2)}”。`),
@@ -167,7 +205,7 @@ class Kaizimu {
     } else {
       let guessAccepted: boolean = false;
       for (const item of this.itemsToGuess) {
-        if (item.name === userGuess) {
+        if (item.name === userGuess.name) {
           item.guessed = true;
           guessAccepted = true;
           session.send(this.onGameOutput());
@@ -182,7 +220,7 @@ class Kaizimu {
       if (guessAccepted) return;
       session.send([
         h.quote(session.messageId),
-        h.text(`您所猜的歌曲“${userGuess}”不在范围内。`),
+        h.text(`您所猜的歌曲“${userGuess.name}”不在范围内。`),
       ]);
     }
     return;
