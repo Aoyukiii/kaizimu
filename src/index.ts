@@ -1,4 +1,4 @@
-import { Context, Fragment, h, Logger, Schema, Session } from "koishi";
+import { Context, h, Logger, Schema, Session } from "koishi";
 import fs from "fs";
 import Fuse from "fuse.js";
 import { randomSubarry } from "./utils";
@@ -24,13 +24,11 @@ class Kaizimu {
   private itemsToGuess: GuessInfo[];
   private letterGuessed: string[];
 
-  constructor(ctx: Context) {
+  constructor(ctx: Context, config: Kaizimu.Config) {
     this.logger = new Logger("kaizimu");
     this.onGame = false;
 
-    const path = "external/kaizimu/list/songlist";
-
-    fs.readFile(path, "utf8", (err, raw) => {
+    fs.readFile(config.path, "utf8", (err: any, raw: string) => {
       if (err) {
         this.logger.error(err);
       }
@@ -43,28 +41,38 @@ class Kaizimu {
     });
 
     ctx.command("search <name:text>").action(({ session }, name: string) => {
-      const result = this.search(name);
-      if (result.length === 0) return `无查询结果。`;
-      return [
-        h.quote(session.messageId),
-        `您要找的是不是：${result[0].item}\n` +
-          `相似的还有：\n` +
-          result
-            .map(
-              (item, index) =>
-                `[#${index + 1}] ${item.item} (${item.score.toFixed(2)})`
-            )
-            .join("\n"),
-      ];
+      try {
+        const result = this.search(name);
+        if (result.length === 0) return `无查询结果。`;
+        return [
+          h.quote(session.messageId),
+          `您要找的是不是：${result[0].item}\n` +
+            `相似的还有：\n` +
+            result
+              .map(
+                (item, index) =>
+                  `[#${index + 1}] ${item.item} (${item.score.toFixed(2)})`
+              )
+              .join("\n"),
+        ];
+      } catch (err) {
+        this.logger.error(err);
+        return "未知错误，请联系管理员。";
+      }
     });
 
     ctx
       .command("start")
       .option("length", "-l <length:number>")
       .action(({ session, options }) => {
-        if (this.onGame) return "当前正在游戏中，请使用/giveup指令结束。";
-        this.start(ctx, session, options.length ?? 6);
-        this.onGame = true;
+        try {
+          if (this.onGame) return "当前正在游戏中，请使用/giveup指令结束。";
+          this.start(ctx, session, options.length ?? 6);
+          this.onGame = true;
+        } catch (err) {
+          this.logger.error(err);
+          return "未知错误，请联系管理员。";
+        }
       });
 
     ctx.command("giveup").action(() => {
@@ -182,9 +190,13 @@ class Kaizimu {
 }
 
 namespace Kaizimu {
-  export interface Config {}
+  export interface Config {
+    path: string;
+  }
 
-  export const Config: Schema<Config> = Schema.object({});
+  export const Config: Schema<Config> = Schema.object({
+    path: Schema.path().required(),
+  });
 }
 
 export default Kaizimu;
