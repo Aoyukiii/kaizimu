@@ -15,8 +15,10 @@
     "koishi",
     "plugin"
   ],
-  "devDependencies": {},
   "peerDependencies": {
     "koishi": "4.18.0"
+  },
+  "dependencies": {
+    "fuse.js": "^7.0.0"
   }
 }
