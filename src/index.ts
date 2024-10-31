@@ -23,6 +23,7 @@ class Kaizimu {
   private fuse: Fuse<LibItem>;
   private logger: Logger;
   private LibList: LibItem[];
+  private LibType: "name-only" | "alias";
 
   private onGame: boolean;
   private dispose: () => boolean;
@@ -33,33 +34,7 @@ class Kaizimu {
     this.logger = new Logger("kaizimu");
     this.onGame = false;
 
-    fs.readFile(config.path, "utf8", (err: any, raw: string) => {
-      if (err) {
-        this.logger.error(err);
-      }
-      try {
-        let arrRaw: unknown[] = JSON.parse(raw);
-        if (typeof arrRaw[0] === "string") {
-          this.LibList = (arrRaw as string[]).map((name) => {
-            return { name };
-          });
-        } else if (
-          typeof arrRaw[0] === "object" &&
-          (arrRaw[0] as LibItem).name
-        ) {
-          this.LibList = arrRaw as LibItem[];
-        } else {
-          this.logger.error("无法识别的词库。");
-          return;
-        }
-        this.fuse = new Fuse(this.LibList, {
-          includeScore: true,
-          keys: ["name", "aliases"],
-        });
-      } catch (err) {
-        this.logger.error(err);
-      }
-    });
+    this.loadPath(config.path);
 
     ctx.command("search <name:text>").action(({ session }, name: string) => {
       try {
@@ -67,13 +42,17 @@ class Kaizimu {
         if (result.length === 0) return `无查询结果。`;
         return [
           h.quote(session.messageId),
-          h.text(`您要找的是不是：${result[0].item.name}\n`),
+          h.text(
+            `您要找的是不是：${result[0].item.name} (ID: ${result[0].refIndex})\n`
+          ),
           h.text(`相似的还有：\n`),
           h.text(
             result
               .map(
-                (item, index) =>
-                  `[#${index + 1}] ${item.item.name} (${item.score.toFixed(2)})`
+                (song, index) =>
+                  `[#${index + 1}] ${song.item.name} (${song.score.toFixed(
+                    2
+                  )}, ID: ${song.refIndex})`
               )
               .join("\n")
           ),
@@ -100,7 +79,7 @@ class Kaizimu {
     });
 
     ctx
-      .command("start")
+      .command("kaizimu").alias("开字母")
       .option("length", "-l <length:number>")
       .action(({ session, options }) => {
         try {
@@ -119,10 +98,75 @@ class Kaizimu {
       this.onGame = false;
       return this.onGiveupOutput();
     });
+
+    ctx
+      .command("addalias <id:number> <alias:text>").alias("aa")
+      .action(({ session }, id: number, alias: string) => {
+        if (this.LibType !== "alias") {
+          return "请使用可添加别名的词库。";
+        }
+        if (this.hasAlias(alias)) {
+          return "这个别名已被添加过。";
+        }
+        this.LibList[id].aliases.push(alias);
+        fs.writeFile(
+          config.path,
+          JSON.stringify(this.LibList, null, 2),
+          (err) => {
+            if (err) {
+              this.logger.error(err);
+              session.send("添加失败");
+              return;
+            }
+            session.send("添加成功。");
+          }
+        );
+      });
+  }
+
+  loadPath(path: string) {
+    fs.readFile(path, "utf8", (err: any, raw: string) => {
+      if (err) {
+        this.logger.error(err);
+      }
+      try {
+        let arrRaw: unknown[] = JSON.parse(raw);
+        if (typeof arrRaw[0] === "string") {
+          this.LibType = "name-only";
+          this.LibList = (arrRaw as string[]).map((name) => {
+            return { name };
+          });
+        } else if (
+          typeof arrRaw[0] === "object" &&
+          (arrRaw[0] as LibItem).name
+        ) {
+          this.LibType = "alias";
+          this.LibList = arrRaw as LibItem[];
+        } else {
+          this.logger.error("无法识别的词库。");
+          return;
+        }
+        this.fuse = new Fuse(this.LibList, {
+          includeScore: true,
+          keys: ["name", "aliases"],
+        });
+      } catch (err) {
+        this.logger.error(err);
+      }
+    });
   }
 
   search(name: string, length?: number) {
     return this.fuse.search(name).slice(0, length ?? 5);
+  }
+
+  hasAlias(alias: string): boolean {
+    for (const item of this.LibList) {
+      for (const libAlias of item.aliases) {
+        if (libAlias === alias) return true;
+      }
+    }
+    return false;
   }
 
   start(ctx: Context, session: Session<never, never, Context>, length: number) {
