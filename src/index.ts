@@ -24,6 +24,7 @@ class Kaizimu {
   private readonly dictInfos: DictInfo[];
   private dictAdapters: DictAdapter[];
   private readonly logger: Logger;
+
   constructor(ctx: Context, config: Kaizimu.Config) {
     this.logger = new Logger("kaizimu");
     this.dictInfos = config.dictInfos;
@@ -89,23 +90,39 @@ class Kaizimu {
       .option("force", "-f")
       .alias("aa")
       .before(this.checkDictEmpty.bind(this))
-      .action(({ options }, dictName: string, id: number, alias: string) => {
-        if (!id || !alias) return "参数不足。";
+      .action(
+        ({ options, session }, dictName: string, id: number, alias: string) => {
+          if (!id || !alias) return "参数不足。";
 
-        const dictAdapter = this.findDictAdapter(dictName);
-        if (!dictAdapter) return `找不到词库 ${dictName}。`;
+          const dictAdapter = this.findDictAdapter(dictName);
+          if (!dictAdapter) return `找不到词库 ${dictName}。`;
 
-        if (!config.canWrite) return "管理员已设置词典为不可修改。";
+          if (!config.canWrite) return "管理员已设置词典为不可修改。";
 
-        if (options.force && dictAdapter.dictType !== "alias") {
-          return "暂未实现"; // TODO
+          if (options.force && dictAdapter.dictType !== "alias") {
+            return "暂未实现。"; // TODO
+          }
+
+          if (dictAdapter.dictType === "alias") {
+            if (this.haveAlias(dictAdapter, alias)) return "该别名已被创建。";
+
+            const dictElem = dictAdapter.dict[id];
+            if (!dictElem) return "请输入有效范围的id。";
+
+            dictElem.aliases.push(alias);
+            dictAdapter
+              .writePath()
+              .then(() => {
+                session.send("创建别名成功。");
+              })
+              .catch((err) => {
+                session.send("创建别名失败。");
+                this.logger.error(err);
+              });
+            return "创建中......";
+          }
         }
-
-        if (dictAdapter.dictType === "alias") {
-          if (this.haveAlias(dictAdapter, alias)) return "该别名已被创建。";
-          return "暂未实现"; // TODO
-        }
-      });
+      );
   }
 
   checkDictEmpty() {

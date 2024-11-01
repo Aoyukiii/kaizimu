@@ -57,7 +57,10 @@ export default class DictAdapter {
         this.dict = (arrRaw as string[]).map((name) => {
           return { name };
         });
-      } else if (typeof arrRaw[0] === "object" && (arrRaw[0] as DictElem).name) {
+      } else if (
+        typeof arrRaw[0] === "object" &&
+        (arrRaw[0] as DictElem).name
+      ) {
         this.dictType = "alias";
         this.dict = arrRaw as DictElem[];
       } else {
@@ -78,4 +81,11 @@ export default class DictAdapter {
     }
   }
 
+  async writePath() {
+    try {
+      await fs.writeFile(this.path, JSON.stringify(this.dict, null, 2));
+    } catch (err) {
+      throw err;
+    }
+  }
 }
