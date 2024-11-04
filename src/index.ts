@@ -1,8 +1,7 @@
-import { Context, Logger, Schema, Session } from "koishi";
-import Fuse, { FuseResult } from "fuse.js";
-import { randomSubarray } from "./utils";
-import { permission } from "process";
+import { Context, Logger, Schema } from "koishi";
+import { FuseResult } from "fuse.js";
 import DictAdapter, { DictInfo, DictElem } from "./DictAdapter";
+import Game, { GameId } from "./Game";
 
 export const name = "kaizimu";
 
@@ -22,13 +21,16 @@ interface GuessInfo extends LibItem {
 
 class Kaizimu {
   private readonly dictInfos: DictInfo[];
-  private dictAdapters: DictAdapter[];
   private readonly logger: Logger;
+  private dictAdapters: DictAdapter[];
+  private games: Game[];
+
+  private dispose: () => void;
 
   constructor(ctx: Context, config: Kaizimu.Config) {
     this.logger = new Logger("kaizimu");
     this.dictInfos = config.dictInfos;
-    this.init(ctx).then(() => {
+    this.init().then(() => {
       this.logger.info("初始化已完成。");
     });
 
@@ -123,6 +125,70 @@ class Kaizimu {
           }
         }
       );
+
+    ctx
+      .command("kaizimu")
+      .option("entries", "-e <entries:number>")
+      .alias("开字母")
+      .before(this.checkDictEmpty.bind(this))
+      .action(({ session, options }, dictName: string) => {
+        const { game } = this.getIndexAndGame(session);
+        if (game) return "正在游戏中，请使用/giveup指令放弃本次游戏。";
+
+        const dictAdapter = this.findDictAdapter(dictName);
+        if (!dictAdapter) return `找不到词库 ${dictName}。`;
+
+        const newGame = new Game(dictAdapter, session);
+        this.games.push(newGame);
+
+        this.dispose = ctx.middleware((session, next) => {
+          const raw = session.content;
+
+          const { game, index } = this.getIndexAndGame(session);
+          if (!game) return next();
+
+          if (raw.slice(0, 2) === "开歌") {
+            let result = game.uncoverEntry(raw.slice(2));
+            if (game.checkAllGuessed()) {
+              const time = Date.now() - game.startTime;
+              result +=
+                `\n\n---- 本次游戏已结束 ----\n` +
+                `---- 用时 ${time / 1000} 秒 ----`;
+              this.games.splice(index, 1);
+              this.dispose();
+            }
+            return result;
+          }
+
+          if (raw.slice(0, 1) === "开") {
+            return game.uncoverLetter(raw[1]);
+          }
+        });
+
+        return newGame.start(options.entries);
+      });
+
+    ctx
+      .command("giveup")
+      .alias("不玩了")
+      .action(({ session }) => {
+        const { index, game } = this.getIndexAndGame(session);
+        if (!game) return "未开始游戏，请使用/kaizimu指令开启游戏。";
+
+        this.games.splice(index, 1);
+        return game.giveup();
+      });
+
+    ctx.command("monitor").action(() => {
+      return this.games
+        .map(
+          (game, index) =>
+            `#${index + 1}\n` +
+            `Guild: ${game.gameId.guildId}\n` +
+            `User: ${game.gameId.userId}\n`
+        )
+        .join("\n");
+    });
   }
 
   checkDictEmpty() {
@@ -147,7 +213,8 @@ class Kaizimu {
     return false;
   }
 
-  async init(ctx: Context) {
+  async init() {
+    this.games = [];
     await this.loadDicts();
   }
 
@@ -207,6 +274,13 @@ class Kaizimu {
       (result.aliases.length === 0 ? ` 无` : `\n• `) +
       result.aliases.join("\n• ")
     );
+  }
+
+  getIndexAndGame(gameId: GameId) {
+    for (const [index, game] of this.games.entries()) {
+      if (game.hasGameId(gameId)) return { index, game };
+    }
+    return { index: null, game: null };
   }
 }
 

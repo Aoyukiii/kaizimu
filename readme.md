@@ -14,9 +14,7 @@
 [
   {
     "name": "Sayonara Hatsukoi",
-    "aliases": [
-      "再见初恋"
-    ]
+    "aliases": ["再见初恋"]
   },
   {
     "name": "Fairytale",
@@ -32,17 +30,12 @@
   },
   {
     "name": "Lucifer",
-    "aliases": [
-      "路西法"
-    ]
+    "aliases": ["路西法"]
   },
   {
     "name": "GOODTEK (Arcaea Edit)",
-    "aliases": [
-      "好锤子",
-      "锤子"
-    ]
-  },
+    "aliases": ["好锤子", "锤子"]
+  }
   // ...
 ]
 ```
@@ -56,11 +49,19 @@
   "Vexaria",
   "Rise",
   "Lucifer",
-  "GOODTEK (Arcaea Edit)",
+  "GOODTEK (Arcaea Edit)"
   // ...
 ]
 ```
 
 可以在插件配置中添加路径并加上词库别名（使用指令时要用到），然后重载配置即可。
 
-## 游戏指令（修复中）
+## 可使用的指令
+
+- `addalias` 添加别名
+- `dict` 查询已加载词库
+- `giveup` 放弃本轮游戏
+- `info` 查询歌曲信息
+- `kaizimu` 开始游戏
+- `monitor` 检测状态
+- `search` 搜索词库词条

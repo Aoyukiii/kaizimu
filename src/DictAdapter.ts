@@ -1,6 +1,5 @@
 import fs from "fs/promises";
 import Fuse, { Expression } from "fuse.js";
-import { name } from ".";
 
 export interface DictElem {
   name: string;
@@ -36,7 +35,6 @@ export default class DictAdapter {
   constructor(dictInfo: DictInfo) {
     this.path = dictInfo.path;
     this.dictName = dictInfo.dictName;
-    // this.loadPath(this.path);
   }
 
   parse(raw: string) {
