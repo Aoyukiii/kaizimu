@@ -104,11 +104,4 @@ export function FormatInfo(result: DictElem, id: number) {
       {aliasInfo}
     </>
   );
-  return (
-    `${result.name}\n------------\n` +
-    `id: ${id}\n` +
-    `别名:` +
-    (result.aliases.length === 0 ? ` 无` : `\n• `) +
-    result.aliases.join("\n• ")
-  );
 }

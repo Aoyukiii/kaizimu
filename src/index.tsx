@@ -39,6 +39,18 @@ class Kaizimu {
         return DictList({ dictAdapters: this.dictAdapters });
       });
 
+    ctx.command("reload").action(({ session }) => {
+      this.loadDicts()
+        .then(() => {
+          session.send("重载完成。");
+        })
+        .catch((err) => {
+          session.send("重载失败。");
+          this.logger.error(err);
+        });
+      return "重新加载中······";
+    });
+
     ctx
       .command("search <dict:string> <name:text>")
       .before(this.checkDictEmpty.bind(this))

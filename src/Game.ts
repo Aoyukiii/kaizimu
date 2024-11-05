@@ -17,11 +17,9 @@ export default class Game {
 
   private EntriesToGuess: GuessElem[];
   private letterGuessed: string[];
-  private isEnd: boolean;
 
   constructor(dictAdapter: DictAdapter, gameId: GameId) {
     this.startTime = Date.now();
-    this.isEnd = false;
     this.dictAdapter = dictAdapter;
     const { guildId, userId } = gameId;
     this.gameId = { guildId, userId };
