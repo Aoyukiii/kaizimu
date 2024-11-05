@@ -1,6 +1,5 @@
 import { Context, Logger, Schema } from "koishi";
-import { FuseResult } from "fuse.js";
-import DictAdapter, { DictInfo, DictElem } from "./DictAdapter";
+import DictAdapter, { DictInfo } from "./DictAdapter";
 import Game, { GameId } from "./Game";
 import {
   DictList,
