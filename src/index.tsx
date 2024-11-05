@@ -2,6 +2,13 @@ import { Context, Logger, Schema } from "koishi";
 import { FuseResult } from "fuse.js";
 import DictAdapter, { DictInfo, DictElem } from "./DictAdapter";
 import Game, { GameId } from "./Game";
+import {
+  DictList,
+  GameMonitor,
+  GameEndInterface,
+  FormatResults,
+  FormatInfo,
+} from "./templates";
 
 export const name = "kaizimu";
 
@@ -9,16 +16,7 @@ export interface Config {}
 
 export const Config: Schema<Config> = Schema.object({});
 
-interface LibItem {
-  name: string;
-  aliases?: string[];
-}
-
-interface GuessInfo extends LibItem {
-  // name: string;
-  guessed: boolean;
-}
-
+// TODO: JSX nested support
 class Kaizimu {
   private readonly dictInfos: DictInfo[];
   private readonly logger: Logger;
@@ -38,12 +36,7 @@ class Kaizimu {
       .command("dict")
       .before(this.checkDictEmpty.bind(this))
       .action(() => {
-        return (
-          "词库:\n• " +
-          this.dictAdapters
-            .map((dictAdapter) => dictAdapter.dictName)
-            .join("\n• ")
-        );
+        return DictList({ dictAdapters: this.dictAdapters });
       });
 
     ctx
@@ -57,7 +50,7 @@ class Kaizimu {
 
         const results = dictAdapter.fuseSearcher.search(name, { limit: 5 });
         if (results.length === 0) return "无搜索结果。";
-        return this.formatResults(results);
+        return FormatResults(results);
       });
 
     ctx
@@ -73,7 +66,7 @@ class Kaizimu {
         if (options.id) {
           const dictElem = dictAdapter.dict[options.id];
           if (!dictElem) return "请输入有效范围的id。";
-          return this.formatInfo(dictElem, options.id);
+          return FormatInfo(dictElem, options.id);
         }
 
         if (name) {
@@ -81,7 +74,7 @@ class Kaizimu {
             limit: 1,
           });
           if (results.length === 0) return "无搜索结果。";
-          return this.formatInfo(results[0].item, results[0].refIndex);
+          return FormatInfo(results[0].item, results[0].refIndex);
         }
 
         return "请提供搜索名或者id。";
@@ -101,28 +94,27 @@ class Kaizimu {
 
           if (!config.canWrite) return "管理员已设置词典为不可修改。";
 
-          if (options.force && dictAdapter.dictType !== "alias") {
-            return "暂未实现。"; // TODO
+          if (dictAdapter.dictType !== "alias") {
+            if (!options.force) return "该词典类型为非别名类型。";
+            return "暂未实现。"; // TODO: forced addalias function
           }
 
-          if (dictAdapter.dictType === "alias") {
-            if (this.haveAlias(dictAdapter, alias)) return "该别名已被创建。";
+          if (this.haveAlias(dictAdapter, alias)) return "该别名已被创建。";
 
-            const dictElem = dictAdapter.dict[id];
-            if (!dictElem) return "请输入有效范围的id。";
+          const dictElem = dictAdapter.dict[id];
+          if (!dictElem) return "请输入有效范围的id。";
 
-            dictElem.aliases.push(alias);
-            dictAdapter
-              .writePath()
-              .then(() => {
-                session.send("创建别名成功。");
-              })
-              .catch((err) => {
-                session.send("创建别名失败。");
-                this.logger.error(err);
-              });
-            return "创建中......";
-          }
+          dictElem.aliases.push(alias);
+          dictAdapter
+            .writePath()
+            .then(() => {
+              session.send("创建别名成功。");
+            })
+            .catch((err) => {
+              session.send("创建别名失败。");
+              this.logger.error(err);
+            });
+          return "创建中······";
         }
       );
 
@@ -151,11 +143,9 @@ class Kaizimu {
             let result = game.uncoverEntry(raw.slice(2));
             if (game.checkAllGuessed()) {
               const time = Date.now() - game.startTime;
-              result +=
-                `\n\n---- 本次游戏已结束 ----\n` +
-                `---- 用时 ${time / 1000} 秒 ----`;
               this.games.splice(index, 1);
               this.dispose();
+              return GameEndInterface(result, time);
             }
             return result;
           }
@@ -180,14 +170,7 @@ class Kaizimu {
       });
 
     ctx.command("monitor").action(() => {
-      return this.games
-        .map(
-          (game, index) =>
-            `#${index + 1}\n` +
-            `Guild: ${game.gameId.guildId}\n` +
-            `User: ${game.gameId.userId}\n`
-        )
-        .join("\n");
+      return GameMonitor({ games: this.games });
     });
   }
 
@@ -248,31 +231,6 @@ class Kaizimu {
 
     this.logger.info(
       `词库已加载 ${this.dictAdapters.length}/${this.dictInfos.length} 个。`
-    );
-  }
-
-  formatResults(results: FuseResult<DictElem>[]) {
-    return (
-      `搜索结果:\n` +
-      results
-        .map(
-          (result, i) =>
-            `[${i + 1}] ${result.item.name}` +
-            `\n      (${result.score.toFixed(2)}, id: ${
-              result.refIndex // TODO: id not suitable
-            })`
-        )
-        .join("\n")
-    );
-  }
-
-  formatInfo(result: DictElem, id: number) {
-    return (
-      `${result.name}\n------------\n` +
-      `id: ${id}\n` +
-      `别名:` +
-      (result.aliases.length === 0 ? ` 无` : `\n• `) +
-      result.aliases.join("\n• ")
     );
   }
 
