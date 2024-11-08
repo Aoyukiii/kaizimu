@@ -9,13 +9,8 @@ import {
   FormatInfo,
 } from "./templates";
 
-export const name = "kaizimu";
-
-export interface Config {}
-
-export const Config: Schema<Config> = Schema.object({});
-
 // TODO: JSX nested support
+// TODO: logger and shortcut
 class Kaizimu {
   private readonly dictInfos: DictInfo[];
   private readonly logger: Logger;
