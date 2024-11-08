@@ -9,7 +9,6 @@ import {
   FormatInfo,
 } from "./templates";
 
-// TODO: JSX nested support
 // TODO: logger and shortcut
 class Kaizimu {
   private readonly dictInfos: DictInfo[];
@@ -262,7 +261,9 @@ namespace Kaizimu {
         dictName: Schema.string()
           .required()
           .description("词库名称（用于指令查询）"),
-        path: Schema.path().required().description("词库路径"),
+        path: Schema.path({ allowCreate: true, filters: ["file"] })
+          .required()
+          .description("词库路径"),
       })
     )
       .role("table")
