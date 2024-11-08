@@ -56,7 +56,7 @@ class Kaizimu {
 
         const results = dictAdapter.fuseSearcher.search(name, { limit: 5 });
         if (results.length === 0) return "无搜索结果。";
-        return FormatResults(results);
+        return <FormatResults results={results} />;
       });
 
     ctx
@@ -72,7 +72,7 @@ class Kaizimu {
         if (options.id) {
           const dictElem = dictAdapter.dict[options.id];
           if (!dictElem) return "请输入有效范围的id。";
-          return FormatInfo(dictElem, options.id);
+          return <FormatInfo result={dictElem} id={options.id} />;
         }
 
         if (name) {
@@ -80,7 +80,9 @@ class Kaizimu {
             limit: 1,
           });
           if (results.length === 0) return "无搜索结果。";
-          return FormatInfo(results[0].item, results[0].refIndex);
+          return (
+            <FormatInfo result={results[0].item} id={results[0].refIndex} />
+          );
         }
 
         return "请提供搜索名或者id。";

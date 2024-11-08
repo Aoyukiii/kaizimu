@@ -62,7 +62,11 @@ export function GameEndInterface(giveupList: string, time: number) {
   );
 }
 
-export function FormatResults(results: FuseResult<DictElem>[]) {
+export function FormatResults({
+  results,
+}: {
+  results: FuseResult<DictElem>[];
+}) {
   return (
     <>
       <p>搜索结果</p>
@@ -83,7 +87,7 @@ export function FormatResults(results: FuseResult<DictElem>[]) {
   );
 }
 
-export function FormatInfo(result: DictElem, id: number) {
+export function FormatInfo({ result, id }: { result: DictElem; id: number }) {
   let aliasInfo;
   if (result.aliases.length === 0) aliasInfo = <p>别名: 无</p>;
   else
